@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Shooting Game</title>
+    <style>
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module">
+        const socket = io();
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let players = {};
+        let bullets = [];
+
+        const drawPlayers = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            Object.values(players).forEach(({ x, y, color, score }) => {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.fillText(`Score: ${score}`, x - 20, y - 30);
+            });
+        };
+
+        const drawBullets = () => {
+            ctx.fillStyle = 'black';
+            bullets.forEach(({ x, y }) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        };
+
+        const updateBullets = () => {
+            bullets.forEach((bullet, index) => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(index, 1);
+                }
+                Object.entries(players).forEach(([playerId, player]) => {
+                    if (playerId !== bullet.playerId) {
+                        const dx = player.x - bullet.x;
+                        const dy = player.y - bullet.y;
+                        if (Math.sqrt(dx * dx + dy * dy) < 20) {
+                            socket.emit('playerHit', { hit: playerId, shooter: bullet.playerId });
+                            bullets.splice(index, 1);
+                        }
+                    }
+                });
+            });
+        };
+
+        const gameLoop = () => {
+            drawPlayers();
+            drawBullets();
+            updateBullets();
+            requestAnimationFrame(gameLoop);
+        };
+
+        socket.on('currentPlayers', (playersData) => {
+            players = playersData;
+        });
+
+        socket.on('newPlayer', (playerData) => {
+            players[playerData.id] = playerData;
+        });
+
+        socket.on('playerDisconnected', (playerId) => {
+            delete players[playerId];
+        });
+
+        socket.on('playerMoved', (playerData) => {
+            players[playerData.id] = playerData;
+        });
+
+        socket.on('bulletFired', (bulletData) => {
+            bullets.push(bulletData);
+        });
+
+        socket.on('scoreUpdate', ({ id, score }) => {
+            if (players[id]) {
+                players[id].score = score;
+            }
+        });
+
+        gameLoop();
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (socket.id in players) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                players[socket.id].x = x;
+                players[socket.id].y = y;
+                socket.emit('playerMovement', { x, y });
+            }
+        });
+
+        canvas.addEventListener('click', (event) => {
+            if (socket.id in players) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const angle = Math.atan2(y - players[socket.id].y, x - players[socket.id].x);
+                const bulletData = {
+                    x: players[socket.id].x,
+                    y: players[socket.id].y,
+                    dx: Math.cos(angle) * 5,
+                    dy: Math.sin(angle) * 5,
+                    playerId: socket.id
+                };
+                socket.emit('shoot', bulletData);
+            }
+        });
+    </script>
+</body>
+</html>
