@@ -95,7 +95,7 @@
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             Object.values(players).forEach(({ x, y, color, score, direction, gun, username, id , life}) => {
-                drawBackground();
+                // drawBackground();
                 drawGameStatusBar(username, score, life);
                 ctx.fillStyle = 'black';
                 ctx.fillText(`Score: ${score}`, x , y);
