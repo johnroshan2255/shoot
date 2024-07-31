@@ -76,6 +76,11 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('audioStream', (audioData) => {
+      console.log('audio');
+      io.emit('audioStream', audioData);
+    });
+
     socket.on('shoot', (bulletData) => {
       io.emit('bulletFired', bulletData);
     });

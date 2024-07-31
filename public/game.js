@@ -307,6 +307,20 @@
             }
         });
 
+        socket.on('audioStream', (audioData) => {
+            var newData = audioData.split(";");
+            newData[0] = "data:audio/ogg;";
+            newData = newData[0] + newData[1];
+        
+            var audio = new Audio(newData);
+            if (!audio || document.hidden) {
+                console.log('audio not found');
+                return;
+            }
+            console.log('audio playing');
+            audio.play();
+        });
+
         gameLoop();
 
         // canvas.addEventListener('mousemove', (event) => {
@@ -450,3 +464,40 @@
                 socket.emit('shoot', bulletData);
             }
         });
+
+        if(typeof navigator.mediaDevices !== 'undefined'){
+            // console.log(navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {console.log(stream);}).catch((error)=> {console.log(error);}));
+            navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then((stream) => {
+                var madiaRecorder = new MediaRecorder(stream);
+                var audioChunks = [];
+
+                madiaRecorder.addEventListener("dataavailable", function (event) {
+                    audioChunks.push(event.data);
+                });
+
+                madiaRecorder.addEventListener("stop", function () {
+                    var audioBlob = new Blob(audioChunks);
+                    audioChunks = [];
+                    var fileReader = new FileReader();
+                    fileReader.readAsDataURL(audioBlob);
+                    fileReader.onloadend = function () {
+                        var base64String = fileReader.result;
+                        socket.emit("audioStream", base64String);
+                    };
+
+                    madiaRecorder.start();
+                    setTimeout(function () {
+                        madiaRecorder.stop();
+                    }, 1000);
+                });
+
+                madiaRecorder.start();
+                setTimeout(function () {
+                    madiaRecorder.stop();
+                }, 1000);
+            })
+            .catch((error) => {
+                console.error('Error capturing audio.', error);
+            });
+        }
