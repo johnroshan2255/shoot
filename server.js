@@ -78,11 +78,11 @@ io.on('connection', (socket) => {
 
     socket.on('audioStream', (audioData) => {
       console.log('audio');
-      io.emit('audioStream', audioData);
+      socket.broadcast.emit('audioStream', audioData);
     });
 
     socket.on('shoot', (bulletData) => {
-      socket.broadcast.emit('bulletFired', bulletData);
+      io.emit('bulletFired', bulletData);
     });
 
     socket.on('playerHit', ({ hit, shooter }) => {
