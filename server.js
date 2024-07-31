@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('shoot', (bulletData) => {
-      io.emit('bulletFired', bulletData);
+      socket.broadcast.emit('bulletFired', bulletData);
     });
 
     socket.on('playerHit', ({ hit, shooter }) => {
